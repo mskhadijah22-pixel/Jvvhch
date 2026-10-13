@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Redirect Page</title>
+<style>
+  :root{--bg:#f4f6fb;--card:#fff;--text:#1b1f2a;--muted:#6b7385;--accent:#4f46e5;--border:#e2e6f0}
+  @media (prefers-color-scheme:dark){:root{--bg:#12141c;--card:#1c1f2b;--text:#eef0f6;--muted:#9aa1b5;--accent:#818cf8;--border:#2c3040}}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+    background:var(--bg);color:var(--text);font-family:"Noto Sans Bengali","Hind Siliguri","Kalpurush",system-ui,sans-serif}
+  .card{width:100%;max-width:460px;background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.08)}
+  .card img{width:100%;max-height:300px;object-fit:cover;display:block}
+  .body{padding:22px}
+  h1{font-size:1.35rem;margin:0 0 10px}
+  p{color:var(--muted);margin:0 0 16px}
+  label{display:block;font-weight:600;margin:14px 0 6px;font-size:.92rem}
+  input{width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font:inherit}
+  button,.btn{display:inline-block;border:0;border-radius:10px;padding:11px 18px;font:inherit;font-weight:600;cursor:pointer;
+    background:var(--accent);color:#fff;text-decoration:none;margin:14px 8px 0 0}
+  .ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+  .out{margin-top:16px;word-break:break-all;font-size:.88rem;background:var(--bg);padding:10px;border-radius:10px;border:1px dashed var(--border)}
+  .count{font-size:2rem;font-weight:700;color:var(--accent)}
+  .hide{display:none}
+  .err{color:#dc2626;margin-top:10px;font-size:.9rem}
+</style>
+</head>
+<body>
+
+<!-- Redirect mode -->
+<div class="card hide" id="view">
+  <img id="vImg" alt="" class="hide">
+  <div class="body">
+    <h1 id="vTitle"></h1>
+    <p>আপনাকে <span class="count" id="count">5</span> সেকেন্ডের মধ্যে নিয়ে যাওয়া হচ্ছে…</p>
+    <a class="btn" id="go" href="#" rel="noopener noreferrer">এখনই যান</a>
+    <button class="ghost" id="stop" type="button">বন্ধ করুন</button>
+  </div>
+</div>
+
+<!-- Generator mode -->
+<div class="card hide" id="gen">
+  <div class="body">
+    <h1>Redirect লিংক বানান</h1>
+    <p>ফটো URL, টাইটেল ও redirect URL দিন।</p>
+    <label for="img">ফটো URL</label>
+    <input id="img" type="url" placeholder="https://example.com/photo.jpg">
+    <label for="title">টাইটেল</label>
+    <input id="title" type="text" placeholder="আপনার টাইটেল">
+    <label for="to">Redirect URL</label>
+    <input id="to" type="url" placeholder="https://example.com">
+    <label for="delay">কত সেকেন্ড পর redirect হবে</label>
+    <input id="delay" type="number" min="0" max="60" value="5">
+    <button id="make" type="button">লিংক তৈরি করুন</button>
+    <div class="err hide" id="err"></div>
+    <div class="out hide" id="out"></div>
+    <button class="ghost hide" id="copy" type="button">কপি করুন</button>
+    <a class="btn ghost hide" id="test" target="_blank" rel="noopener">টেস্ট করুন</a>
+  </div>
+</div>
+
+<script>
+(function(){
+  var $ = function(id){return document.getElementById(id)};
+  var q = new URLSearchParams(location.search);
+
+  // শুধু http/https URL গ্রহণযোগ্য (javascript: ইত্যাদি ব্লক)
+  function safe(u){
+    try{var x=new URL(u); return (x.protocol==='http:'||x.protocol==='https:')?x.href:null}catch(e){return null}
+  }
+
+  var to = safe(q.get('to')||'');
+
+  if(to){
+    // ---- Redirect mode ----
+    var img = safe(q.get('img')||''), title = q.get('title')||'';
+    var delay = Math.max(0, Math.min(60, parseInt(q.get('delay'),10)));
+    if(isNaN(delay)) delay = 5;
+
+    $('view').classList.remove('hide');
+    if(title){ $('vTitle').textContent = title; document.title = title; }
+    if(img){ $('vImg').src = img; $('vImg').classList.remove('hide'); }
+    $('go').href = to;
+
+    var left = delay, timer;
+    $('count').textContent = left;
+    function tick(){
+      left--;
+      $('count').textContent = Math.max(left,0);
+      if(left<=0){ clearInterval(timer); location.href = to; }
+    }
+    if(delay===0){ location.replace(to); }
+    else { timer = setInterval(tick,1000); }
+    $('stop').onclick = function(){ clearInterval(timer); $('count').parentNode.textContent='Redirect বন্ধ করা হয়েছে।'; };
+  } else {
+    // ---- Generator mode ----
+    $('gen').classList.remove('hide');
+    var link = '';
+    $('make').onclick = function(){
+      var i = $('img').value.trim(), t = $('title').value.trim(), r = $('to').value.trim(), d = $('delay').value;
+      var err = $('err'); err.classList.add('hide');
+      if(!safe(r)){ err.textContent='সঠিক Redirect URL দিন (http:// বা https:// দিয়ে শুরু)।'; err.classList.remove('hide'); return; }
+      if(i && !safe(i)){ err.textContent='ফটো URL সঠিক নয়।'; err.classList.remove('hide'); return; }
+      var p = new URLSearchParams();
+      if(i) p.set('img',i);
+      if(t) p.set('title',t);
+      p.set('to',r);
+      p.set('delay',d||5);
+      link = location.origin + location.pathname + '?' + p.toString();
+      if(location.protocol==='file:') link = location.href.split('?')[0] + '?' + p.toString();
+      $('out').textContent = link;
+      $('out').classList.remove('hide');
+      $('copy').classList.remove('hide');
+      $('test').href = link; $('test').classList.remove('hide');
+    };
+    $('copy').onclick = function(){
+      if(navigator.clipboard){ navigator.clipboard.writeText(link).then(function(){$('copy').textContent='কপি হয়েছে ✓'}); }
+    };
+  }
+})();
+</script>
+</body>
+</html>
